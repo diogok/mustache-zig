@@ -15,8 +15,6 @@ const lambda = @import("contexts/native/lambda.zig");
 const native_context = @import("contexts/native/context.zig");
 const ErasedType = native_context.ErasedType;
 
-const extern_types = @import("../ffi/extern_types.zig");
-
 pub inline fn getField(data: anytype, comptime field_name: []const u8) field_type: {
     const Data = @TypeOf(data);
     const TField = FieldType(Data, field_name);
@@ -201,10 +199,6 @@ pub fn byValue(comptime TField: type) bool {
         const is_pointer = stdx.isSlice(TField) or
             stdx.isSingleItemPtr(TField);
 
-        const is_json = TField == std.json.Value;
-
-        const is_ffi_userdata = TField == extern_types.UserData;
-
         const is_lambda_invoker = size <= max_size and lambda.isLambdaInvoker(TField);
 
         const can_embed = size <= max_size and
@@ -214,7 +208,7 @@ pub fn byValue(comptime TField: type) bool {
             else => false,
         };
 
-        return is_json or is_ffi_userdata or is_zero_size or is_pointer or is_lambda_invoker or can_embed;
+        return is_zero_size or is_pointer or is_lambda_invoker or can_embed;
     }
 }
 

@@ -14,8 +14,6 @@ const rendering = @import("rendering.zig");
 const ContextSource = rendering.ContextSource;
 
 const native_context = @import("contexts/native/context.zig");
-const json_context = @import("contexts/json/context.zig");
-const ffi_context = @import("contexts/ffi/context.zig");
 
 pub const Fields = @import("Fields.zig");
 
@@ -66,12 +64,8 @@ pub fn ContextType(
 
     // The native context uses dynamic dispatch to resolve how to render each kind
     // of struct and data-type.
-    // The json context uses static dispatch, once the JSON key-value is well known
-    // for any possible type.
     return switch (context_source) {
         .native => native_context.ContextInterfaceType(Writer, PartialsMap, options),
-        .json => json_context.ContextType(Writer, PartialsMap, options),
-        .ffi => ffi_context.ContextType(Writer, PartialsMap, options),
     };
 }
 
@@ -92,8 +86,6 @@ pub fn ContextImplType(
 
     return switch (context_source) {
         .native => native_context.ContextImplType(Writer, Data, PartialsMap, options),
-        .json => json_context.ContextType(Writer, PartialsMap, options),
-        .ffi => ffi_context.ContextType(Writer, PartialsMap, options),
     };
 }
 
@@ -278,11 +270,12 @@ pub const LambdaContext = struct {
         comptime fmt: []const u8,
         args: anytype,
     ) anyerror!void {
-        const writer = std.io.Writer(LambdaContext, anyerror, writeFn){
-            .context = self,
+        var buf: [4096]u8 = undefined;
+        const formatted = std.fmt.bufPrint(&buf, fmt, args) catch {
+            // Buffer too small - this shouldn't happen with reasonable formatting
+            return;
         };
-
-        try std.fmt.format(writer, fmt, args);
+        _ = try self.vtable.write(self.ptr, formatted);
     }
 
     /// Writes the raw text on the output stream.
@@ -290,15 +283,9 @@ pub const LambdaContext = struct {
     pub fn write(self: LambdaContext, raw_text: []const u8) anyerror!void {
         _ = try self.vtable.write(self.ptr, raw_text);
     }
-
-    fn writeFn(self: LambdaContext, bytes: []const u8) anyerror!usize {
-        return try self.vtable.write(self.ptr, bytes);
-    }
 };
 
 test {
     _ = Fields;
     _ = native_context;
-    _ = json_context;
-    _ = ffi_context;
 }

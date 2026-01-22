@@ -472,43 +472,43 @@ const context_tests = struct {
 
     test "Write Int" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "id");
         try testing.expectEqualStrings("2", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Ref access
         try interpolate(writer, &person, "id");
         try testing.expectEqualStrings("2", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested access
         try interpolate(writer, person, "address.zip");
         try testing.expectEqualStrings("333900", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, person, "indication.address.zip");
         try testing.expectEqualStrings("99450", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref access
         try interpolate(writer, &person, "address.zip");
         try testing.expectEqualStrings("333900", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref pointer access
         try interpolate(writer, &person, "indication.address.zip");
@@ -517,55 +517,55 @@ const context_tests = struct {
 
     test "Write Float" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "salary");
         try testing.expectEqualStrings("140", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Ref access
         try interpolate(writer, &person, "salary");
         try testing.expectEqualStrings("140", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested access
         try interpolate(writer, person, "address.coordinates.lon");
         try testing.expectEqualStrings("38.71471", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Negative values
         try interpolate(writer, person, "address.coordinates.lat");
         try testing.expectEqualStrings("-9.13872", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, person, "indication.address.coordinates.lon");
         try testing.expectEqualStrings("41.40338", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref access
         try interpolate(writer, &person, "address.coordinates.lon");
         try testing.expectEqualStrings("38.71471", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Negative Ref values
         try interpolate(writer, &person, "address.coordinates.lat");
         try testing.expectEqualStrings("-9.13872", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref pointer access
         try interpolate(writer, &person, "indication.address.coordinates.lon");
@@ -574,55 +574,55 @@ const context_tests = struct {
 
     test "Write String" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "name");
         try testing.expectEqualStrings("Someone Jr", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Ref access
         try interpolate(writer, &person, "name");
         try testing.expectEqualStrings("Someone Jr", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Direct Len access
         try interpolate(writer, person, "name.len");
         try testing.expectEqualStrings("10", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Direct Ref Len access
         try interpolate(writer, &person, "name.len");
         try testing.expectEqualStrings("10", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested access
         try interpolate(writer, person, "address.street");
         try testing.expectEqualStrings("nearby", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, person, "indication.address.street");
         try testing.expectEqualStrings("far away street", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref access
         try interpolate(writer, &person, "address.street");
         try testing.expectEqualStrings("nearby", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, &person, "indication.address.street");
@@ -631,31 +631,31 @@ const context_tests = struct {
 
     test "Write Enum" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "address.region");
         try testing.expectEqualStrings("RoW", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Ref access
         try interpolate(writer, &person, "address.region");
         try testing.expectEqualStrings("RoW", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, person, "indication.address.region");
         try testing.expectEqualStrings("EU", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref pointer access
         try interpolate(writer, &person, "indication.address.region");
@@ -664,31 +664,31 @@ const context_tests = struct {
 
     test "Write Bool" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "active");
         try testing.expectEqualStrings("true", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Ref access
         try interpolate(writer, &person, "active");
         try testing.expectEqualStrings("true", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, person, "indication.active");
         try testing.expectEqualStrings("false", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref pointer access
         try interpolate(writer, &person, "indication.active");
@@ -697,43 +697,43 @@ const context_tests = struct {
 
     test "Write Nullable" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "additional_information");
         try testing.expectEqualStrings("someone was here", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Ref access
         try interpolate(writer, &person, "additional_information");
         try testing.expectEqualStrings("someone was here", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Null Accress
         try interpolate(writer, person.indication, "additional_information");
         try testing.expectEqualStrings("", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Null Ref Accress
         try interpolate(writer, person.indication, "additional_information");
         try testing.expectEqualStrings("", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, person, "indication.additional_information");
         try testing.expectEqualStrings("", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref pointer access
         try interpolate(writer, &person, "indication.additional_information");
@@ -742,13 +742,13 @@ const context_tests = struct {
 
     test "Write Not found" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "wrong_name");
@@ -769,90 +769,90 @@ const context_tests = struct {
 
     test "Lambda - staticLambda" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "staticLambda");
         try testing.expectEqualStrings("1", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Ref access
         try interpolate(writer, &person, "staticLambda");
         try testing.expectEqualStrings("1", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, person, "indication.staticLambda");
         try testing.expectEqualStrings("1", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref access
         try interpolate(writer, &person, "staticLambda");
         try testing.expectEqualStrings("1", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref pointer access
         try interpolate(writer, &person, "indication.staticLambda");
         try testing.expectEqualStrings("1", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
     }
 
     test "Lambda - selfLambda" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "selfLambda");
         try testing.expectEqualStrings("10", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Ref access
         try interpolate(writer, &person, "selfLambda");
         try testing.expectEqualStrings("10", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, person, "indication.selfLambda");
         try testing.expectEqualStrings("8", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref access
         try interpolate(writer, &person, "selfLambda");
         try testing.expectEqualStrings("10", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref pointer access
         try interpolate(writer, &person, "indication.selfLambda");
         try testing.expectEqualStrings("8", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
     }
 
     test "Lambda - selfConstPtrLambda" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
@@ -860,52 +860,52 @@ const context_tests = struct {
         const person_const_ptr: *const Person = &person;
         const person_ptr: *Person = &person;
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Direct access
         try interpolate(writer, person, "selfConstPtrLambda");
         try testing.expectEqualStrings("10", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Const Ref access
 
         try interpolate(writer, person_const_ptr, "selfConstPtrLambda");
         try testing.expectEqualStrings("10", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Mut Ref access
         try interpolate(writer, person_ptr, "selfConstPtrLambda");
         try testing.expectEqualStrings("10", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested pointer access
         try interpolate(writer, person, "indication.selfConstPtrLambda");
         try testing.expectEqualStrings("8", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested const Ref access
         try interpolate(writer, person_const_ptr, "indication.selfConstPtrLambda");
         try testing.expectEqualStrings("8", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         // Nested Ref access
         try interpolate(writer, person_ptr, "indication.selfConstPtrLambda");
         try testing.expectEqualStrings("8", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
     }
 
     test "Lambda - Write selfMutPtrLambda" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         {
             const person = getPerson();
@@ -915,20 +915,20 @@ const context_tests = struct {
             try interpolate(writer, person, "selfMutPtrLambda");
             try testing.expectEqualStrings("", list.items);
 
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             // Mutable pointer
             try interpolate(writer, person, "indication.selfMutPtrLambda");
             try testing.expectEqualStrings("1", list.items);
             try testing.expect(person.indication.?.counter == 1);
 
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolate(writer, person, "indication.selfMutPtrLambda");
             try testing.expectEqualStrings("2", list.items); // Called again, it's mutable
             try testing.expect(person.indication.?.counter == 2);
 
-            list.clearAndFree();
+            list.clearAndFree(allocator);
         }
 
         {
@@ -940,7 +940,7 @@ const context_tests = struct {
             try interpolate(writer, const_person_ptr, "selfMutPtrLambda");
             try testing.expectEqualStrings("", list.items);
 
-            list.clearAndFree();
+            list.clearAndFree(allocator);
         }
 
         {
@@ -952,83 +952,83 @@ const context_tests = struct {
             try testing.expectEqualStrings("1", list.items);
             try testing.expect(person.counter == 1);
 
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolate(writer, &person, "selfMutPtrLambda");
             try testing.expectEqualStrings("2", list.items); //Called again, it's mutable
             try testing.expect(person.counter == 2);
 
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             // Nested pointer access
             try interpolate(writer, &person, "indication.selfMutPtrLambda");
             try testing.expectEqualStrings("1", list.items);
             try testing.expect(person.indication.?.counter == 1);
 
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolate(writer, &person, "indication.selfMutPtrLambda");
             try testing.expectEqualStrings("2", list.items); // Called again, it's mutable
             try testing.expect(person.indication.?.counter == 2);
 
-            list.clearAndFree();
+            list.clearAndFree(allocator);
         }
     }
 
     test "Lambda - error handling" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         const person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         try interpolate(writer, person, "willFailStaticLambda");
         try testing.expectEqualStrings("", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         try interpolate(writer, person, "willFailSelfLambda");
         try testing.expectEqualStrings("unfinished", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
     }
 
     test "Lambda - Write invalid functions" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         const person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Unexpected arguments
         try interpolate(writer, person, "anythingElse");
         try testing.expectEqualStrings("", list.items);
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
     }
 
     test "Navigation" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Person
 
         var person_ctx = DummyRenderEngine.getContextType(&person);
 
         {
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolateCtx(writer, person_ctx, "address.street", .unescaped);
             try testing.expectEqualStrings("nearby", list.items);
@@ -1050,7 +1050,7 @@ const context_tests = struct {
         };
 
         {
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolateCtx(writer, address_ctx, "street", .unescaped);
             try testing.expectEqualStrings("nearby", list.items);
@@ -1072,14 +1072,14 @@ const context_tests = struct {
         };
 
         {
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolateCtx(writer, street_ctx, "", .unescaped);
             try testing.expectEqualStrings("nearby", list.items);
         }
 
         {
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolateCtx(writer, street_ctx, ".", .unescaped);
             try testing.expectEqualStrings("nearby", list.items);
@@ -1088,20 +1088,20 @@ const context_tests = struct {
 
     test "Navigation Pointers" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Person
 
         var person_ctx = DummyRenderEngine.getContextType(&person);
 
         {
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolateCtx(writer, person_ctx, "indication.address.street", .unescaped);
             try testing.expectEqualStrings("far away street", list.items);
@@ -1123,7 +1123,7 @@ const context_tests = struct {
         };
 
         {
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolateCtx(writer, indication_ctx, "address.street", .unescaped);
             try testing.expectEqualStrings("far away street", list.items);
@@ -1145,7 +1145,7 @@ const context_tests = struct {
         };
 
         {
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolateCtx(writer, address_ctx, "street", .unescaped);
             try testing.expectEqualStrings("far away street", list.items);
@@ -1167,14 +1167,14 @@ const context_tests = struct {
         };
 
         {
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolateCtx(writer, street_ctx, "", .unescaped);
             try testing.expectEqualStrings("far away street", list.items);
         }
 
         {
-            list.clearAndFree();
+            list.clearAndFree(allocator);
 
             try interpolateCtx(writer, street_ctx, ".", .unescaped);
             try testing.expectEqualStrings("far away street", list.items);
@@ -1259,13 +1259,13 @@ const context_tests = struct {
 
     test "Iterator over slice" {
         const allocator = testing.allocator;
-        var list = std.ArrayList(u8).init(allocator);
-        defer list.deinit();
+        var list: std.ArrayList(u8) = .empty;
+        defer list.deinit(allocator);
 
         var person = getPerson();
         defer if (person.indication) |indication| allocator.destroy(indication);
 
-        const writer = list.writer();
+        const writer = list.writer(allocator);
 
         // Person
         var ctx = DummyRenderEngine.getContextType(&person);
@@ -1286,7 +1286,7 @@ const context_tests = struct {
             unreachable;
         };
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         try interpolateCtx(writer, item_1, "name", .unescaped);
         try testing.expectEqualStrings("item 1", list.items);
@@ -1296,7 +1296,7 @@ const context_tests = struct {
             unreachable;
         };
 
-        list.clearAndFree();
+        list.clearAndFree(allocator);
 
         try interpolateCtx(writer, item_2, "name", .unescaped);
         try testing.expectEqualStrings("item 2", list.items);

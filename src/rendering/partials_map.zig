@@ -23,27 +23,15 @@ pub fn PartialsMapType(comptime TPartials: type, comptime comptime_options: Rend
             .string, .file => []const u8,
         };
 
-        allocator: if (options != .template and !isEmpty()) Allocator else void,
+        allocator: ?Allocator,
         partials: TPartials,
 
-        pub usingnamespace switch (options) {
-            .template => struct {
-                pub fn init(partials: TPartials) PartialsMap {
-                    return .{
-                        .allocator = {},
-                        .partials = partials,
-                    };
-                }
-            },
-            .string, .file => struct {
-                pub fn init(allocator: Allocator, partials: TPartials) PartialsMap {
-                    return .{
-                        .allocator = if (comptime isEmpty()) {} else allocator,
-                        .partials = partials,
-                    };
-                }
-            },
-        };
+        pub fn init(allocator: ?Allocator, partials: TPartials) PartialsMap {
+            return .{
+                .allocator = allocator,
+                .partials = partials,
+            };
+        }
 
         pub fn isEmpty() bool {
             return switch (@typeInfo(TPartials)) {

@@ -57,16 +57,16 @@ pub fn LambdaContextImplType(comptime Writer: type, comptime PartialsMap: type, 
             defer template.deinit(allocator);
 
             const out_writer = self.data_render.out_writer;
-            var list = std.ArrayList(u8).init(allocator);
-            self.data_render.out_writer = .{ .buffer = list.writer() };
+            var list: std.ArrayList(u8) = .empty;
+            self.data_render.out_writer = .{ .buffer = list.writer(allocator) };
 
             defer {
                 self.data_render.out_writer = out_writer;
-                list.deinit();
+                list.deinit(allocator);
             }
 
             try self.data_render.render(template.elements);
-            return list.toOwnedSlice();
+            return list.toOwnedSlice(allocator);
         }
 
         fn render(ctx: *const anyopaque, allocator: Allocator, template_text: []const u8) anyerror!void {
