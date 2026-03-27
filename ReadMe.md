@@ -3,16 +3,15 @@
 
 [![made with Zig](https://img.shields.io/badge/made%20with%20%E2%9D%A4%20-Zig-orange)](https://ziglang.org/)
 [![Matrix Build](https://github.com/batiati/mustache-zig/actions/workflows/build.yml/badge.svg)](https://github.com/batiati/mustache-zig/actions/workflows/build.yml)
-[![codecov](https://codecov.io/gh/batiati/mustache-zig/branch/master/graph/badge.svg)](https://codecov.io/gh/batiati/mustache-zig)
-[![license mit](https://img.shields.io/github/license/batiati/mustache-zig)](https://github.com/batiati/mustache-zig/blob/master/LICENSE.txt)
+[![codecov](https://codecov.io/gh/batiati/mustache-zig/branch/main/graph/badge.svg)](https://codecov.io/gh/batiati/mustache-zig)
+[![license mit](https://img.shields.io/github/license/batiati/mustache-zig)](https://github.com/batiati/mustache-zig/blob/main/LICENSE.txt)
 
 ![logo](mustache.png)
 
-# ! Under development !
+Requires Zig 0.15.2
 
 ## [Read more on Zig News](https://zig.news/batiati/growing-a-mustache-with-zig-di4)
 
-# 
 ## Features
 
 ✓ [Comments](https://github.com/mustache/spec/blob/master/specs/comments.yml) `{{! Mustache is awesome }}`.
@@ -42,7 +41,7 @@
 ## Examples
 
 Render from strings, files and pre-loaded templates.
-See the [source code](https://github.com/batiati/mustache-zig/blob/master/samples/zig/src/main.zig) for more details.
+See the [source code](https://github.com/batiati/mustache-zig/blob/main/samples/zig/src/main.zig) for more details.
 
 ### Runtime parser
 
@@ -163,7 +162,7 @@ For more details:
 
 There is no "one size fits all", but the mustache-zig API is intended to provide great flexibility to cover many use cases.
  
-[![diagram](docs/diagram.svg)](https://raw.githubusercontent.com/batiati/mustache-zig/master/docs/diagram.svg)
+[![diagram](docs/diagram.svg)](https://raw.githubusercontent.com/batiati/mustache-zig/main/docs/diagram.svg)
 
 ## Benchmarks.
 

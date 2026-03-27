@@ -1,6 +1,7 @@
 .{
     .name = .mustache,
     .version = "0.0.1",
+    .minimum_zig_version = "0.15.2",
     .fingerprint = 0x488f3d880740b06d,
     .paths = .{""},
 }
