@@ -27,7 +27,7 @@ pub fn ParserType(comptime options: TemplateOptions) type {
     return struct {
         const Parser = @This();
 
-        pub const LoadError = Allocator.Error || if (options.source == .file) std.fs.File.ReadError || std.fs.File.OpenError else error{};
+        pub const LoadError = Allocator.Error || if (options.source == .file) std.Io.File.ReadStreamingError || std.Io.File.OpenError else error{};
         pub const AbortError = error{ParserAbortedError};
 
         pub const Node = parsing.NodeType(options);
@@ -70,6 +70,7 @@ pub fn ParserType(comptime options: TemplateOptions) type {
 
         pub fn init(
             gpa: Allocator,
+            io: if (options.source == .file) std.Io else void,
             template: []const u8,
             delimiters: Delimiters,
         ) if (options.source == .string)
@@ -80,7 +81,7 @@ pub fn ParserType(comptime options: TemplateOptions) type {
                 .gpa = gpa,
                 .default_delimiters = delimiters,
                 .inner_state = .{
-                    .text_scanner = try TextScanner.init(template),
+                    .text_scanner = try TextScanner.init(io, template),
                 },
             };
         }
@@ -93,7 +94,7 @@ pub fn ParserType(comptime options: TemplateOptions) type {
             self: *Parser,
             render: anytype,
         ) (LoadError || RenderError(@TypeOf(render)))!bool {
-            self.inner_state.nodes = Node.List{};
+            self.inner_state.nodes = .empty;
             var nodes = &self.inner_state.nodes;
 
             self.inner_state.text_scanner.nodes = nodes;
@@ -365,7 +366,7 @@ pub fn ParserType(comptime options: TemplateOptions) type {
 
             defer if (options.isRefCounted()) self.unRefNodes();
 
-            var list: std.ArrayListUnmanaged(Element) = .{};
+            var list: std.ArrayList(Element) = .empty;
 
             if (options.load_mode == .runtime_loaded) {
                 try list.ensureTotalCapacityPrecise(self.gpa, nodes.items.len);
@@ -653,7 +654,7 @@ test "Basic parse" {
             const allocator = testing.allocator;
 
             var test_render = TestRender{};
-            var parser = try TesterParserType(load_mode).init(allocator, template_text, .{});
+            var parser = try TesterParserType(load_mode).init(allocator, {}, template_text, .{});
             defer parser.deinit();
 
             const success = try parser.parse(&test_render);
@@ -714,7 +715,7 @@ test "Scan standAlone tags" {
             const allocator = testing.allocator;
 
             var test_render = TestRender{};
-            var parser = try TesterParserType(load_mode).init(allocator, template_text, .{});
+            var parser = try TesterParserType(load_mode).init(allocator, {}, template_text, .{});
             defer parser.deinit();
 
             const success = try parser.parse(&test_render);
@@ -774,7 +775,7 @@ test "Scan delimiters Tags" {
             const allocator = testing.allocator;
 
             var test_render = TestRender{};
-            var parser = try TesterParserType(load_mode).init(allocator, template_text, .{});
+            var parser = try TesterParserType(load_mode).init(allocator, {}, template_text, .{});
             defer parser.deinit();
 
             const success = try parser.parse(&test_render);
@@ -809,7 +810,7 @@ test "Parse - UnexpectedCloseSection " {
 
     // Cannot test parser errors at comptime because they generate compile errors.Allocator
     // This test can only run at runtime
-    var parser = try TesterParserType(.runtime_loaded).init(allocator, template_text, .{});
+    var parser = try TesterParserType(.runtime_loaded).init(allocator, {}, template_text, .{});
     defer parser.deinit();
 
     var render = DummyRender{};
@@ -834,7 +835,7 @@ test "Parse - Invalid delimiter" {
 
     // Cannot test parser errors at comptime because they generate compile errors.Allocator
     // This test can only run at runtime
-    var parser = try TesterParserType(.runtime_loaded).init(allocator, template_text, .{});
+    var parser = try TesterParserType(.runtime_loaded).init(allocator, {}, template_text, .{});
     defer parser.deinit();
 
     var render = DummyRender{};
@@ -859,7 +860,7 @@ test "Parse - Invalid identifier" {
 
     // Cannot test parser errors at comptime because they generate compile errors.Allocator
     // This test can only run at runtime
-    var parser = try TesterParserType(.runtime_loaded).init(allocator, template_text, .{});
+    var parser = try TesterParserType(.runtime_loaded).init(allocator, {}, template_text, .{});
     defer parser.deinit();
 
     var render = DummyRender{};
@@ -884,7 +885,7 @@ test "Parse - ClosingTagMismatch " {
 
     // Cannot test parser errors at comptime because they generate compile errors.Allocator
     // This test can only run at runtime
-    var parser = try TesterParserType(.runtime_loaded).init(allocator, template_text, .{});
+    var parser = try TesterParserType(.runtime_loaded).init(allocator, {}, template_text, .{});
     defer parser.deinit();
 
     var render = DummyRender{};

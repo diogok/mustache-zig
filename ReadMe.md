@@ -8,7 +8,7 @@
 
 ![logo](mustache.png)
 
-Requires Zig 0.15.2
+Requires Zig 0.16.0
 
 ## [Read more on Zig News](https://zig.news/batiati/growing-a-mustache-with-zig-di4)
 
@@ -50,7 +50,7 @@ See the [source code](https://github.com/batiati/mustache-zig/blob/main/samples/
 const std = @import("std");
 const mustache = @import("mustache");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     const template =
         \\Hello {{name}} from Zig
         \\Supported features:
@@ -69,19 +69,15 @@ pub fn main() !void {
         },
     };
 
-    const allocator = std.testing.allocator;
+    const allocator = init.gpa;
     const result = try mustache.allocRenderText(allocator, template, data);
     defer allocator.free(result);
 
-    try std.testing.expectEqualStrings(
-        \\Hello friends from Zig
-        \\Supported features:
-        \\  - interpolation
-        \\  - sections
-        \\  - delimiters
-        \\  - partials
-        \\
-    , result);
+    // Render directly to stdout via the new std.Io.Writer interface
+    var buf: [4096]u8 = undefined;
+    var stdout = std.Io.File.stdout().writer(init.io, &buf);
+    defer stdout.interface.flush() catch {};
+    try stdout.interface.writeAll(result);
 }
 
 ```
@@ -93,21 +89,21 @@ pub fn main() !void {
 const std = @import("std");
 const mustache = @import("mustache");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     const template_text = "It's a comptime loaded template, with a {{value}}";
     const comptime_template = comptime mustache.parseComptime(template_text, .{}, .{});
-    
+
     const Data = struct { value: []const u8 };
     const data: Data = .{
-        .value = "runtime value"
+        .value = "runtime value",
     };
 
-    const allocator = std.testing.allocator;
-    const result = try mustache.allocRender(comptime_template, data);
+    const allocator = init.gpa;
+    const result = try mustache.allocRender(allocator, comptime_template, data);
     defer allocator.free(result);
 
     try std.testing.expectEqualStrings(
-        "It's a comptime loaded template, with a runtime value", 
+        "It's a comptime loaded template, with a runtime value",
         result,
     );
 }
@@ -122,15 +118,15 @@ pub fn main() !void {
 const std = @import("std");
 const mustache = @import("mustache");
 
-pub fn main() !void {
-    const allocator = std.testing.allocator;
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     // Parsing an arbitrary (dynamic) json string:
     const json_source =
         \\{
         \\   "name": "friends"
         \\}
-    ;    
+    ;
     var json = try std.json.parseFromSlice(
         std.json.Value,
         allocator,
@@ -140,10 +136,10 @@ pub fn main() !void {
     defer json.deinit();
 
     const template = "Hello {{name}} from Zig";
-    const result = try mustache.allocRenderText(allocator, template, json);
+    const result = try mustache.allocRenderText(allocator, template, json.value);
     defer allocator.free(result);
 
-    try std.testing.expectEqualStrings("Hello friends from Zig" , result);
+    try std.testing.expectEqualStrings("Hello friends from Zig", result);
 }
 
 ```
@@ -239,12 +235,18 @@ So, it's also important to be able to deal with multi-megabyte inputs without ea
 
     // 32KB should be enough memory for this job
     // 16KB if we don't need to support lambdas 😅
-    var plenty_of_memory = std.heap.GeneralPurposeAllocator(.{ .enable_memory_limit = true }){
-        .requested_memory_limit = 32 * 1024,
-    };
+    var plenty_of_memory: std.heap.DebugAllocator(.{ .enable_memory_limit = true }) = .init;
+    plenty_of_memory.requested_memory_limit = 32 * 1024;
     defer _ = plenty_of_memory.deinit();
 
-    try mustache.renderFile(plenty_of_memory.allocator(), "10MB_file.mustache", ctx, out_writer);
+    // The new std.Io interface threads I/O through file-related APIs.
+    try mustache.renderFile(
+        plenty_of_memory.allocator(),
+        init.io,
+        "10MB_file.mustache",
+        ctx,
+        out_writer, // *std.Io.Writer
+    );
 
 ```
 

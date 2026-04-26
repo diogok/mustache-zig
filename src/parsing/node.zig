@@ -22,7 +22,7 @@ pub fn NodeType(comptime options: TemplateOptions) type {
     return struct {
         const Node = @This();
 
-        pub const List = std.ArrayListUnmanaged(Node);
+        pub const List = std.ArrayList(Node);
         pub const TextPart = parsing.TextPartType(options);
 
         index: u32 = 0,

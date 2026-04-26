@@ -1,13 +1,21 @@
 const std = @import("std");
+const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const mustache = @import("mustache");
 
-pub fn main() anyerror!void {
+var bench_io: Io = undefined;
+
+pub fn main(init: std.process.Init) anyerror!void {
+    bench_io = init.io;
     std.debug.print("Benchmark\n{s}\n", .{"https://github.com/batiati/mustache_benchmark"});
     std.debug.print("=============================\n\n", .{});
     try runTemplate("Template 1", Binding1, "data/template1.html", "data/bindings1.json");
     try runTemplate("Template 2", Binding2, "data/template2.html", "data/bindings2.json");
     try runTemplate("Template 3", Binding3, "data/template3.html", "data/bindings3.json");
+}
+
+inline fn nanoTimestamp() i96 {
+    return Io.Timestamp.now(bench_io, .awake).nanoseconds;
 }
 
 const TIMES = 1_000_000;
@@ -57,13 +65,13 @@ fn runTemplatePreParsed(allocator: Allocator, comptime caption: []const u8, comp
 
     var total_bytes: usize = 0;
     var repeat: u32 = 0;
-    const start = std.time.nanoTimestamp();
+    const start = nanoTimestamp();
     while (repeat < TIMES) : (repeat += 1) {
         const result = try mustache.allocRender(allocator, template, &data.value);
         total_bytes += result.len;
         allocator.free(result);
     }
-    const end = std.time.nanoTimestamp();
+    const end = nanoTimestamp();
 
     const ellapsed = end - start;
     printSummary(caption, ellapsed, total_bytes);
@@ -75,19 +83,19 @@ fn runTemplateNotParsed(allocator: Allocator, comptime caption: []const u8, comp
 
     var total_bytes: usize = 0;
     var repeat: u32 = 0;
-    const start = std.time.nanoTimestamp();
+    const start = nanoTimestamp();
     while (repeat < TIMES) : (repeat += 1) {
         const result = try mustache.allocRenderText(allocator, template_text, &data.value);
         total_bytes += result.len;
         allocator.free(result);
     }
-    const end = std.time.nanoTimestamp();
+    const end = nanoTimestamp();
 
     const ellapsed = end - start;
     printSummary(caption, ellapsed, total_bytes);
 }
 
-fn printSummary(caption: []const u8, ellapsed: i128, total_bytes: usize) void {
+fn printSummary(caption: []const u8, ellapsed: i96, total_bytes: usize) void {
     std.debug.print("\n{s}\n", .{caption});
     std.debug.print("Total time {d:.3}s\n", .{@as(f64, @floatFromInt(ellapsed)) / std.time.ns_per_s});
     std.debug.print("{d:.0} ops/s\n", .{TIMES / (@as(f64, @floatFromInt(ellapsed)) / std.time.ns_per_s)});

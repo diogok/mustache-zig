@@ -17,10 +17,11 @@ const LambdaContext = context.LambdaContext;
 
 const rendering = @import("../../rendering.zig");
 
-pub fn LambdaContextImplType(comptime Writer: type, comptime PartialsMap: type, comptime options: RenderOptions) type {
+const Writer = std.Io.Writer;
+
+pub fn LambdaContextImplType(comptime PartialsMap: type, comptime options: RenderOptions) type {
     const RenderEngine = rendering.RenderEngineType(
         .native,
-        Writer,
         PartialsMap,
         options,
     );
@@ -56,17 +57,15 @@ pub fn LambdaContextImplType(comptime Writer: type, comptime PartialsMap: type, 
             };
             defer template.deinit(allocator);
 
-            const out_writer = self.data_render.out_writer;
-            var list: std.ArrayList(u8) = .empty;
-            self.data_render.out_writer = .{ .buffer = list.writer(allocator) };
+            const prev_out_writer = self.data_render.out_writer;
+            var aw: Writer.Allocating = .init(allocator);
+            self.data_render.out_writer = &aw.writer;
 
-            defer {
-                self.data_render.out_writer = out_writer;
-                list.deinit(allocator);
-            }
+            defer self.data_render.out_writer = prev_out_writer;
+            errdefer aw.deinit();
 
             try self.data_render.render(template.elements);
-            return list.toOwnedSlice(allocator);
+            return aw.toOwnedSlice();
         }
 
         fn render(ctx: *const anyopaque, allocator: Allocator, template_text: []const u8) anyerror!void {

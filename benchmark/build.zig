@@ -10,16 +10,24 @@ pub fn build(b: *std.Build) void {
     // Benchmark defaults to ReleaseSafe
     const mode = std.builtin.OptimizeMode.ReleaseSafe;
 
-    const exe = b.addExecutable(.{
-        .name = "benchmark",
-        .root_source_file = b.path("src/ramhorns_bench.zig"),
+    const mustache_module = b.createModule(.{
+        .root_source_file = b.path("../src/mustache.zig"),
         .target = target,
         .optimize = mode,
     });
-    exe.root_module.addAnonymousImport("mustache", .{
-        .root_source_file = b.path("../src/mustache.zig"),
+
+    const exe_module = b.createModule(.{
+        .root_source_file = b.path("src/ramhorns_bench.zig"),
+        .target = target,
+        .optimize = mode,
+        .link_libc = true,
     });
-    exe.linkLibC();
+    exe_module.addImport("mustache", mustache_module);
+
+    const exe = b.addExecutable(.{
+        .name = "benchmark",
+        .root_module = exe_module,
+    });
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);

@@ -1,5 +1,6 @@
 const std = @import("std");
-const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
+const Io = std.Io;
+const Writer = std.Io.Writer;
 const mustache = @import("mustache");
 
 // Mustache template
@@ -40,75 +41,66 @@ var ctx = .{
     },
 };
 
-pub fn main() anyerror!void {
-    try renderFromString();
-    try renderFromJson();
-    //try renderComptimeTemplate();
-    try renderFromCachedTemplate();
-    try renderFromFile();
-    //try renderComptimePartialTemplate();
+pub fn main(init: std.process.Init) anyerror!void {
+    const gpa = init.gpa;
+    const io = init.io;
+
+    try renderFromString(gpa, io);
+    try renderFromJson(gpa, io);
+    //try renderComptimeTemplate(io);
+    try renderFromCachedTemplate(gpa, io);
+    try renderFromFile(io);
+    //try renderComptimePartialTemplate(io);
+}
+
+fn stdoutWriter(io: Io, buffer: []u8) Io.File.Writer {
+    return Io.File.stdout().writer(io, buffer);
 }
 
 /// Render a template from a string
-pub fn renderFromString() anyerror!void {
-    var gpa = GeneralPurposeAllocator(.{}){};
-    defer {
-        if (gpa.detectLeaks()) @panic("renderFromString leaked");
-        _ = gpa.deinit();
-    }
-
-    const allocator = gpa.allocator();
-    var out = std.io.getStdOut();
+pub fn renderFromString(allocator: std.mem.Allocator, io: Io) anyerror!void {
+    var buf: [4096]u8 = undefined;
+    var fw = stdoutWriter(io, &buf);
+    defer fw.interface.flush() catch {};
 
     // Direct render to save memory
-    try mustache.renderText(allocator, template_text, ctx, out.writer());
+    try mustache.renderText(allocator, template_text, ctx, &fw.interface);
 }
 
 /// Render a template from a Json object
-pub fn renderFromJson() anyerror!void {
-    var gpa = GeneralPurposeAllocator(.{}){};
-    defer {
-        if (gpa.detectLeaks()) @panic("renderFromJson leaked");
-        _ = gpa.deinit();
-    }
-
-    const allocator = gpa.allocator();
-    var out = std.io.getStdOut();
+pub fn renderFromJson(allocator: std.mem.Allocator, io: Io) anyerror!void {
+    var buf: [4096]u8 = undefined;
+    var fw = stdoutWriter(io, &buf);
+    defer fw.interface.flush() catch {};
 
     // Serializing the context as a json string
-    const json_text = try std.json.stringifyAlloc(allocator, ctx, .{});
+    const json_text = try std.json.Stringify.valueAlloc(allocator, ctx, .{});
     defer allocator.free(json_text);
 
     var tree = try std.json.parseFromSlice(std.json.Value, allocator, json_text, .{});
     defer tree.deinit();
 
     // Rendering from a Json object
-    try mustache.renderText(allocator, template_text, tree.value, out.writer());
+    try mustache.renderText(allocator, template_text, tree.value, &fw.interface);
 }
 
 /// Parses a template at comptime to render many times at runtime, no allocations needed
-pub fn renderComptimeTemplate() anyerror!void {
-    var out = std.io.getStdOut();
+pub fn renderComptimeTemplate(io: Io) anyerror!void {
+    var buf: [4096]u8 = undefined;
+    var fw = stdoutWriter(io, &buf);
+    defer fw.interface.flush() catch {};
 
     // Comptime-parsed template
     const comptime_template = comptime mustache.parseComptime(template_text, .{}, .{});
 
     var repeat: u32 = 0;
     while (repeat < 10) : (repeat += 1) {
-        try mustache.render(comptime_template, ctx, out.writer());
+        try mustache.render(comptime_template, ctx, &fw.interface);
     }
 }
 
 /// Caches a template to render many times
-pub fn renderFromCachedTemplate() anyerror!void {
-    var gpa = GeneralPurposeAllocator(.{}){};
-    defer {
-        if (gpa.detectLeaks()) @panic("renderFromCachedTemplate leaked");
-        _ = gpa.deinit();
-    }
-
-    const allocator = gpa.allocator();
-
+pub fn renderFromCachedTemplate(allocator: std.mem.Allocator, io: Io) anyerror!void {
     // Store this template and render many times from it
     const cached_template = switch (try mustache.parseText(allocator, template_text, .{}, .{ .copy_strings = false })) {
         .success => |ret| ret,
@@ -119,55 +111,66 @@ pub fn renderFromCachedTemplate() anyerror!void {
     };
     defer cached_template.deinit(allocator);
 
+    var buf: [4096]u8 = undefined;
+    var fw = stdoutWriter(io, &buf);
+    defer fw.interface.flush() catch {};
+
     var repeat: u32 = 0;
     while (repeat < 10) : (repeat += 1) {
         const result = try mustache.allocRender(allocator, cached_template, ctx);
         defer allocator.free(result);
 
-        var out = std.io.getStdOut();
-        try out.writeAll(result);
+        try fw.interface.writeAll(result);
     }
 }
 
 /// Render a template from a file path
-pub fn renderFromFile() anyerror!void {
+pub fn renderFromFile(io: Io) anyerror!void {
 
     // 16KB should be enough memory for this job
-    var plenty_of_memory = std.heap.GeneralPurposeAllocator(.{ .enable_memory_limit = true }){
-        .requested_memory_limit = 16 * 1024,
-    };
+    var plenty_of_memory: std.heap.DebugAllocator(.{ .enable_memory_limit = true }) = .init;
+    plenty_of_memory.requested_memory_limit = 16 * 1024;
     defer _ = plenty_of_memory.deinit();
 
     const allocator = plenty_of_memory.allocator();
 
-    const path = try std.fs.selfExeDirPathAlloc(allocator);
-    defer allocator.free(path);
+    var tmp_dir = try Io.Dir.cwd().createDirPathOpen(io, "zig-out/samples-tmp", .{});
+    defer tmp_dir.close(io);
 
-    // Creating a temp file
-    const path_to_template = try std.fs.path.join(allocator, &.{ path, "template.mustache" });
-    defer allocator.free(path_to_template);
-    defer std.fs.deleteFileAbsolute(path_to_template) catch {};
+    const file_name = "template.mustache";
+    defer tmp_dir.deleteFile(io, file_name) catch {};
 
     {
-        var file = try std.fs.createFileAbsolute(path_to_template, .{ .truncate = true });
-        defer file.close();
-        var repeat: u32 = 0;
+        var file = try tmp_dir.createFile(io, file_name, .{ .truncate = true });
+        defer file.close(io);
+
+        var w_buf: [4096]u8 = undefined;
+        var fw = file.writer(io, &w_buf);
+        defer fw.interface.flush() catch {};
 
         // Writing the same template 10K times on a file
+        var repeat: u32 = 0;
         while (repeat < 10_000) : (repeat += 1) {
-            try file.writeAll(template_text);
+            try fw.interface.writeAll(template_text);
         }
     }
 
-    var out = std.io.getStdOut();
+    const path_to_template = try tmp_dir.realPathFileAlloc(io, file_name, allocator);
+    defer allocator.free(path_to_template);
+
+    var out_buf: [4096]u8 = undefined;
+    var out_fw = stdoutWriter(io, &out_buf);
+    defer out_fw.interface.flush() catch {};
 
     // Rendering this large template with only 16KB of RAM
-    try mustache.renderFile(allocator, path_to_template, ctx, out.writer());
+    try mustache.renderFile(allocator, io, path_to_template, ctx, &out_fw.interface);
 }
 
 /// Parses a template at comptime to render many times at runtime, no allocations needed
-pub fn renderComptimePartialTemplate() anyerror!void {
-    var out = std.io.getStdOut();
+pub fn renderComptimePartialTemplate(io: Io) anyerror!void {
+    var buf: [4096]u8 = undefined;
+    var fw = stdoutWriter(io, &buf);
+    defer fw.interface.flush() catch {};
 
     // Comptime-parsed template
     const comptime_template = comptime mustache.parseComptime(
@@ -192,6 +195,6 @@ pub fn renderComptimePartialTemplate() anyerror!void {
 
     var repeat: u32 = 0;
     while (repeat < 10) : (repeat += 1) {
-        try mustache.renderPartials(comptime_template, comptime_partials, data, out.writer());
+        try mustache.renderPartials(comptime_template, comptime_partials, data, &fw.interface);
     }
 }

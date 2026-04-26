@@ -23,14 +23,14 @@ const map = @import("../../partials_map.zig");
 const lambda = @import("lambda.zig");
 const LambdaInvokerType = lambda.LambdaInvokerType;
 
+const Writer = std.Io.Writer;
+
 pub fn InvokerType(
-    comptime Writer: type,
     comptime PartialsMap: type,
     comptime options: RenderOptions,
 ) type {
     const RenderEngine = rendering.RenderEngineType(
         .native,
-        Writer,
         PartialsMap,
         options,
     );
@@ -459,7 +459,7 @@ pub fn InvokerType(
             const escape: Escape = params.@"2";
             const delimiters: Delimiters = params.@"3";
 
-            const Impl = lambda.LambdaContextImplType(Writer, PartialsMap, options);
+            const Impl = lambda.LambdaContextImplType(PartialsMap, options);
             var impl = Impl{
                 .data_render = data_render,
                 .escape = escape,
@@ -568,19 +568,11 @@ const invoker_tests = struct {
         .output = .render,
         .load_mode = .runtime_loaded,
     });
-    const DummyWriter = @TypeOf(std.io.null_writer);
     const DummyPartialsMap = map.PartialsMapType(
         void,
         dummy_options,
     );
-    const DummyRenderEngine = rendering.RenderEngineType(
-        .native,
-        DummyWriter,
-        DummyPartialsMap,
-        dummy_options,
-    );
     const DummyInvoker = InvokerType(
-        DummyWriter,
         DummyPartialsMap,
         dummy_options,
     );
@@ -605,7 +597,7 @@ const invoker_tests = struct {
     }
 
     fn dummySeek(comptime TExpected: type, data: anytype, identifier: []const u8, index: ?usize) !DummyPathInvoker.PathResolution {
-        var parser = try DummyParser.init(testing.allocator, "", .{});
+        var parser = try DummyParser.init(testing.allocator, {}, "", .{});
         defer parser.deinit();
 
         const path = try parser.parsePath(identifier);

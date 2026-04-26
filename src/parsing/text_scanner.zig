@@ -89,7 +89,7 @@ pub fn TextScannerType(comptime Node: type, comptime options: TemplateOptions) t
 
                     @setEvalBranchQuota(999999);
                     const allocator: Allocator = undefined;
-                    var scanner = TextScanner.init(comptime_loaded.template_text) catch unreachable;
+                    var scanner = TextScanner.init({}, comptime_loaded.template_text) catch unreachable;
                     scanner.setDelimiters(comptime_loaded.default_delimiters) catch {
                         // TODO
                         unreachable;
@@ -128,7 +128,7 @@ pub fn TextScannerType(comptime Node: type, comptime options: TemplateOptions) t
 
         /// Should be the template content if source == .string
         /// or the absolute path if source == .File
-        pub fn init(template: []const u8) if (options.source == .string)
+        pub fn init(io: if (options.source == .file) std.Io else void, template: []const u8) if (options.source == .string)
             error{}!TextScanner
         else
             FileReader.OpenError!TextScanner {
@@ -139,7 +139,7 @@ pub fn TextScannerType(comptime Node: type, comptime options: TemplateOptions) t
                 .file => TextScanner{
                     .content = &.{},
                     .file = .{
-                        .reader = try FileReader.init(template),
+                        .reader = try FileReader.init(io, template),
                     },
                 },
             };
@@ -543,7 +543,7 @@ test "basic tests" {
 
     const allocator = testing.allocator;
 
-    var reader = try TestingTextScanner.init(content);
+    var reader = try TestingTextScanner.init({}, content);
     defer reader.deinit(allocator);
 
     try reader.setDelimiters(.{});
@@ -581,7 +581,7 @@ test "custom tags" {
 
     const allocator = testing.allocator;
 
-    var reader = try TestingTextScanner.init(content);
+    var reader = try TestingTextScanner.init({}, content);
     defer reader.deinit(allocator);
 
     try reader.setDelimiters(.{ .starting_delimiter = "[", .ending_delimiter = "]" });
@@ -615,7 +615,7 @@ test "EOF" {
 
     const allocator = testing.allocator;
 
-    var reader = try TestingTextScanner.init(content);
+    var reader = try TestingTextScanner.init({}, content);
     defer reader.deinit(allocator);
 
     try reader.setDelimiters(.{});
@@ -633,7 +633,7 @@ test "EOF custom tags" {
 
     const allocator = testing.allocator;
 
-    var reader = try TestingTextScanner.init(content);
+    var reader = try TestingTextScanner.init({}, content);
     defer reader.deinit(allocator);
 
     try reader.setDelimiters(.{ .starting_delimiter = "[", .ending_delimiter = "]" });
@@ -654,10 +654,10 @@ test "bookmarks" {
     const content = "{{#section1}}begin_content1{{#section2}}content2{{/section2}}end_content1{{/section1}}";
     const allocator = testing.allocator;
 
-    var nodes: TestingNode.List = .{};
+    var nodes: TestingNode.List = .empty;
     defer nodes.deinit(allocator);
 
-    var reader = try TestingTextScanner.init(content);
+    var reader = try TestingTextScanner.init({}, content);
     defer reader.deinit(allocator);
 
     try reader.setDelimiters(.{});

@@ -57,7 +57,6 @@ pub const Escape = enum {
 
 pub fn ContextType(
     comptime context_source: ContextSource,
-    comptime Writer: type,
     comptime PartialsMap: type,
     comptime options: RenderOptions,
 ) type {
@@ -65,13 +64,12 @@ pub fn ContextType(
     // The native context uses dynamic dispatch to resolve how to render each kind
     // of struct and data-type.
     return switch (context_source) {
-        .native => native_context.ContextInterfaceType(Writer, PartialsMap, options),
+        .native => native_context.ContextInterfaceType(PartialsMap, options),
     };
 }
 
 pub fn ContextImplType(
     comptime context_source: ContextSource,
-    comptime Writer: type,
     comptime Data: type,
     comptime PartialsMap: type,
     comptime options: RenderOptions,
@@ -85,7 +83,7 @@ pub fn ContextImplType(
     }
 
     return switch (context_source) {
-        .native => native_context.ContextImplType(Writer, Data, PartialsMap, options),
+        .native => native_context.ContextImplType(Data, PartialsMap, options),
     };
 }
 

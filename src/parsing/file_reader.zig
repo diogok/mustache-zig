@@ -5,12 +5,14 @@ const ArenaAllocator = std.heap.ArenaAllocator;
 const assert = std.debug.assert;
 const testing = std.testing;
 
+const Io = std.Io;
+
 const mustache = @import("../mustache.zig");
 const TemplateOptions = mustache.options.TemplateOptions;
 
 const ref_counter = @import("ref_counter.zig");
 
-const File = std.fs.File;
+const File = Io.File;
 
 pub fn FileReaderType(comptime options: TemplateOptions) type {
     const read_buffer_size = switch (options.source) {
@@ -24,15 +26,17 @@ pub fn FileReaderType(comptime options: TemplateOptions) type {
     return struct {
         const FileReader = @This();
 
-        pub const OpenError = std.fs.File.OpenError;
-        pub const Error = Allocator.Error || std.fs.File.ReadError;
+        pub const OpenError = File.OpenError;
+        pub const Error = Allocator.Error || File.ReadStreamingError;
 
+        io: Io,
         file: File,
         eof: bool = false,
 
-        pub fn init(absolute_path: []const u8) OpenError!FileReader {
-            const file = try std.fs.openFileAbsolute(absolute_path, .{});
+        pub fn init(io: Io, absolute_path: []const u8) OpenError!FileReader {
+            const file = try Io.Dir.openFileAbsolute(io, absolute_path, .{});
             return FileReader{
+                .io = io,
                 .file = file,
             };
         }
@@ -45,7 +49,10 @@ pub fn FileReaderType(comptime options: TemplateOptions) type {
                 std.mem.copyForwards(u8, buffer, prepend);
             }
 
-            const size = try self.file.read(buffer[prepend.len..]);
+            const size = self.file.readStreaming(self.io, &.{buffer[prepend.len..]}) catch |err| switch (err) {
+                error.EndOfStream => 0,
+                else => |e| return e,
+            };
 
             if (size < read_buffer_size) {
                 const full_size = prepend.len + size;
@@ -64,13 +71,14 @@ pub fn FileReaderType(comptime options: TemplateOptions) type {
         }
 
         pub fn deinit(self: *FileReader) void {
-            self.file.close();
+            self.file.close(self.io);
         }
     };
 }
 
 test "FileReader.Slices" {
     const allocator = testing.allocator;
+    const io = testing.io;
 
     // Test the FileReader slicing mechanism
     // In a real use case, the read_buffer_len is much larger than the amount needed to produce a token
@@ -86,22 +94,23 @@ test "FileReader.Slices" {
     //                     ↓  ↓  ↓ ↓    ↓
     const content_text = "{{name}}Just static";
 
-    // Creating a temp file
-    const path = try std.fs.selfExeDirPathAlloc(allocator);
-    defer allocator.free(path);
+    var tmp = testing.tmpDir(.{});
+    defer tmp.cleanup();
 
-    const absolute_file_path = try std.fs.path.join(allocator, &.{ path, "file_reader_slices.tmp" });
-    defer allocator.free(absolute_file_path);
-
+    const file_name = "file_reader_slices.tmp";
     {
-        var file = try std.fs.createFileAbsolute(absolute_file_path, .{ .truncate = true });
-        try file.writeAll(content_text);
-        defer file.close();
+        var file = try tmp.dir.createFile(io, file_name, .{ .truncate = true });
+        defer file.close(io);
+        var w_buf: [256]u8 = undefined;
+        var fw = file.writer(io, &w_buf);
+        try fw.interface.writeAll(content_text);
+        try fw.interface.flush();
     }
 
-    defer std.fs.deleteFileAbsolute(absolute_file_path) catch {};
+    const absolute_file_path = try tmp.dir.realPathFileAlloc(io, file_name, allocator);
+    defer allocator.free(absolute_file_path);
 
-    var reader = try SlicedReader.init(absolute_file_path);
+    var reader = try SlicedReader.init(io, absolute_file_path);
     defer reader.deinit();
 
     var slice: []const u8 = &.{};
