@@ -2347,7 +2347,7 @@ const tests = struct {
             const file_name = "10MB_file.mustache";
             // Writes the same template many times on a file
             const REPEAT = 100_000;
-            const file_size = file_size: {
+            {
                 var file = try tmp.dir.createFile(io, file_name, .{ .truncate = true });
                 defer file.close(io);
                 var w_buf: [4096]u8 = undefined;
@@ -2357,8 +2357,10 @@ const tests = struct {
                     try fw.interface.writeAll(template_text);
                 }
                 try fw.interface.flush();
-                break :file_size (try file.stat(io)).size;
-            };
+            }
+            // On Windows, statting an open write-only file handle returns
+            // AccessDenied; query the size by path after close.
+            const file_size = (try tmp.dir.statFile(io, file_name, .{})).size;
 
             const test_10MB_file = try tmp.dir.realPathFileAlloc(io, file_name, allocator);
             defer allocator.free(test_10MB_file);
