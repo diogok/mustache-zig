@@ -2573,6 +2573,49 @@ const tests = struct {
                 try expectRender(template_text, data, expected);
             }
 
+            // A section holding only whitespace and an indented standalone
+            // close tag once desynced children_count from the produced
+            // elements: the whitespace child is trimmed to empty only after
+            // the close tag is counted, and rendering panicked reading past
+            // the elements slice.
+            test "Indented Standalone Lines - Empty Section" {
+                const template_text =
+                    \\| This Is
+                    \\  {{#boolean}}
+                    \\  {{/boolean}}
+                    \\| A Line
+                ;
+                const expected =
+                    \\| This Is
+                    \\| A Line
+                ;
+
+                try expectRender(template_text, .{ .boolean = true }, expected);
+                try expectRender(template_text, .{ .boolean = false }, expected);
+            }
+
+            // The same desync, with the empty section nested in an outer
+            // section whose children_count also spans the trimmed child.
+            test "Indented Standalone Lines - Empty Nested Section" {
+                const template_text =
+                    \\{{#outer}}
+                    \\before
+                    \\  {{#boolean}}
+                    \\  {{/boolean}}
+                    \\after
+                    \\{{/outer}}
+                ;
+                const expected =
+                    \\before
+                    \\after
+                    \\
+                ;
+
+                try expectRender(template_text, .{ .outer = true, .boolean = true }, expected);
+                try expectRender(template_text, .{ .outer = true, .boolean = false }, expected);
+                try expectRender(template_text, .{ .outer = false, .boolean = true }, "");
+            }
+
             // "\r\n" should be considered a newline for standalone tags.
             test "Standalone Line Endings" {
                 const template_text = "|\r\n{{#boolean}}\r\n{{/boolean}}\r\n|";
@@ -2858,6 +2901,25 @@ const tests = struct {
 
                 const data = .{ .boolean = false };
                 try expectRender(template_text, data, expected);
+            }
+
+            // An inverted section holding only whitespace and an indented
+            // standalone close tag once desynced children_count from the
+            // produced elements; see the matching section test.
+            test "Standalone Indented Lines - Empty Section" {
+                const template_text =
+                    \\| This Is
+                    \\  {{^boolean}}
+                    \\  {{/boolean}}
+                    \\| A Line
+                ;
+                const expected =
+                    \\| This Is
+                    \\| A Line
+                ;
+
+                try expectRender(template_text, .{ .boolean = false }, expected);
+                try expectRender(template_text, .{ .boolean = true }, expected);
             }
 
             // "\r\n" should be considered a newline for standalone tags.

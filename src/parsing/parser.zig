@@ -385,10 +385,23 @@ pub fn ParserType(comptime options: TemplateOptions) type {
                 list.deinit(self.gpa);
             };
 
-            for (nodes.items) |*node| {
-                if (!node.text_part.isEmpty()) {
-                    list.appendAssumeCapacity(try self.createElement(node));
+            for (nodes.items, 0..) |*node, index| {
+                if (node.text_part.isEmpty()) continue;
+
+                // `children_count` was fixed when the section closed, but a
+                // whitespace-only child can be trimmed to empty after that,
+                // when a later node proves the close tag stand-alone. Those
+                // children are skipped here, so they must leave the count too.
+                if (node.children_count > 0) {
+                    var trimmed_children: u32 = 0;
+                    const children = nodes.items[index + 1 .. index + 1 + node.children_count];
+                    for (children) |*child| {
+                        if (child.text_part.isEmpty()) trimmed_children += 1;
+                    }
+                    node.children_count -= trimmed_children;
                 }
+
+                list.appendAssumeCapacity(try self.createElement(node));
             }
 
             const elements = if (options.output == .render or options.load_mode == .comptime_loaded) list.items else try list.toOwnedSlice(self.gpa);
