@@ -4196,6 +4196,117 @@ const tests = struct {
             }
         }
 
+        test "runtime Value interpolation, escaping and missing keys" {
+            const Value = mustache.Value;
+            const data: Value = .{ .map = &.{
+                .{ .name = "name", .value = .{ .string = "The <Keep>" } },
+                .{ .name = "raw", .value = .{ .string = "<b>bold</b>" } },
+            } };
+
+            const ret = try mustache.allocRenderText(
+                testing.allocator,
+                "{{name}} {{{raw}}} [{{missing}}]",
+                &data,
+            );
+            defer testing.allocator.free(ret);
+            try testing.expectEqualStrings("The &lt;Keep&gt; <b>bold</b> []", ret);
+        }
+
+        test "runtime Value dotted paths and nested maps" {
+            const Value = mustache.Value;
+            const data: Value = .{ .map = &.{
+                .{ .name = "level", .value = .{ .map = &.{
+                    .{ .name = "name", .value = .{ .string = "deep" } },
+                } } },
+            } };
+
+            const ret = try mustache.allocRenderText(testing.allocator, "{{level.name}}", &data);
+            defer testing.allocator.free(ret);
+            try testing.expectEqualStrings("deep", ret);
+        }
+
+        test "runtime Value sections iterate lists and reach the parent context" {
+            const Value = mustache.Value;
+            const items = [_]Value{
+                .{ .map = &.{.{ .name = "name", .value = .{ .string = "one" } }} },
+                .{ .map = &.{.{ .name = "name", .value = .{ .string = "two" } }} },
+            };
+            const data: Value = .{ .map = &.{
+                .{ .name = "base", .value = .{ .string = "/gal" } },
+                .{ .name = "items", .value = .{ .list = &items } },
+            } };
+
+            const ret = try mustache.allocRenderText(
+                testing.allocator,
+                "{{#items}}{{base}}/{{name}};{{/items}}",
+                &data,
+            );
+            defer testing.allocator.free(ret);
+            try testing.expectEqualStrings("/gal/one;/gal/two;", ret);
+        }
+
+        test "runtime Value truthiness: null, bools, strings, empty lists" {
+            const Value = mustache.Value;
+            const data: Value = .{ .map = &.{
+                .{ .name = "gone", .value = .null },
+                .{ .name = "no", .value = .{ .bool = false } },
+                .{ .name = "yes", .value = .{ .bool = true } },
+                .{ .name = "word", .value = .{ .string = "w" } },
+                .{ .name = "blank", .value = .{ .string = "" } },
+                .{ .name = "none", .value = .{ .list = &.{} } },
+            } };
+
+            const ret = try mustache.allocRenderText(
+                testing.allocator,
+                "{{#gone}}G{{/gone}}{{^gone}}g{{/gone}}" ++
+                    "{{#no}}N{{/no}}{{^no}}n{{/no}}" ++
+                    "{{#yes}}Y{{/yes}}" ++
+                    "{{#word}}W{{/word}}" ++
+                    "{{#blank}}B{{/blank}}{{^blank}}b{{/blank}}" ++
+                    "{{#none}}L{{/none}}{{^none}}l{{/none}}" ++
+                    "{{^missing}}m{{/missing}}",
+                &data,
+            );
+            defer testing.allocator.free(ret);
+            try testing.expectEqualStrings("gnYWblm", ret);
+        }
+
+        test "runtime Value section over a map pushes its context" {
+            const Value = mustache.Value;
+            const data: Value = .{ .map = &.{
+                .{ .name = "who", .value = .{ .map = &.{
+                    .{ .name = "name", .value = .{ .string = "Aldric" } },
+                } } },
+            } };
+
+            const ret = try mustache.allocRenderText(
+                testing.allocator,
+                "{{#who}}{{name}}{{/who}}",
+                &data,
+            );
+            defer testing.allocator.free(ret);
+            try testing.expectEqualStrings("Aldric", ret);
+        }
+
+        test "runtime Value with partials" {
+            const Value = mustache.Value;
+            const items = [_]Value{
+                .{ .map = &.{.{ .name = "name", .value = .{ .string = "one" } }} },
+            };
+            const data: Value = .{ .map = &.{
+                .{ .name = "items", .value = .{ .list = &items } },
+            } };
+
+            const ret = try mustache.allocRenderTextPartials(
+                testing.allocator,
+                "{{#items}}{{>row}}{{/items}}",
+                .{.{ "row", "[{{name}}]" }},
+                &data,
+            );
+            defer testing.allocator.free(ret);
+            try testing.expectEqualStrings("[one]", ret);
+        }
+
         test "renderFile API" {
             var tmp = testing.tmpDir(.{});
             defer tmp.cleanup();

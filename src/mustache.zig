@@ -12,6 +12,44 @@ pub const options = @import("options.zig");
 
 pub const Delimiters = template.Delimiters;
 pub const Element = template.Element;
+
+/// Template data built at runtime, for callers whose shape is not known
+/// at compile time — configuration-driven contexts, parsed documents,
+/// anything assembled from user input. A `Value` (or a pointer to one)
+/// can stand anywhere comptime data can: as the render's root, inside
+/// lists, mixed into the context stack.
+///
+/// Semantics mirror the native types: `.null`, `false` and an empty
+/// list are falsy; a `.list` iterates; a `.map` pushes a section
+/// context; missing keys fall through to the parent context. The tree
+/// is borrowed — it must outlive the render call.
+pub const Value = union(enum) {
+    null,
+    bool: bool,
+    string: []const u8,
+    list: []const Value,
+    map: []const Field,
+
+    pub const Field = struct {
+        name: []const u8,
+        value: Value,
+    };
+
+    /// The value under `name` in a `.map`, or null.
+    pub fn get(self: *const Value, name: []const u8) ?Value {
+        return if (self.getPtr(name)) |value| value.* else null;
+    }
+
+    /// Like `get`, but the address inside the tree — what a section
+    /// context holds on to.
+    pub fn getPtr(self: *const Value, name: []const u8) ?*const Value {
+        if (self.* != .map) return null;
+        for (self.map) |*field| {
+            if (std.mem.eql(u8, field.name, name)) return &field.value;
+        }
+        return null;
+    }
+};
 pub const Template = template.Template;
 
 pub const parseText = template.parseText;

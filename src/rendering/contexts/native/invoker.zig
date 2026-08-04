@@ -72,6 +72,10 @@ pub fn InvokerType(
 
                     const ctx = Fields.getRuntimeValue(data);
 
+                    if (comptime isRuntimeValue(@TypeOf(ctx))) {
+                        return dynamicFind(depth, action_param, ctx, path, index);
+                    }
+
                     if (comptime lambda.isLambdaInvoker(Data)) {
                         return PathResolution{ .lambda = try action_fn(action_param, ctx) };
                     } else {
@@ -83,6 +87,70 @@ pub fn InvokerType(
                             return PathResolution{ .field = try action_fn(action_param, ctx) };
                         }
                     }
+                }
+
+                fn isRuntimeValue(comptime T: type) bool {
+                    if (T == mustache.Value) @compileError(
+                        "Pass mustache.Value by pointer: the render borrows it",
+                    );
+                    return T == *const mustache.Value or T == *mustache.Value;
+                }
+
+                /// `mustache.Value` resolved at render time, mirroring what
+                /// the comptime machinery does for native types: maps
+                /// resolve path parts, lists and booleans iterate, leaves
+                /// unwrap to the native value the actions already handle.
+                /// Pointers stay pointers into the caller's tree — a
+                /// section context outlives this call and keeps them.
+                fn dynamicFind(
+                    depth: Depth,
+                    action_param: anytype,
+                    value: *const mustache.Value,
+                    path: Element.Path,
+                    index: ?usize,
+                ) TError!PathResolution {
+                    if (path.len > 0) {
+                        if (value.getPtr(path[0])) |found| {
+                            return dynamicFind(.Leaf, action_param, found, path[1..], index);
+                        }
+                        return if (depth == .Root) .not_found_in_context else .chain_broken;
+                    }
+
+                    if (index) |current_index| {
+                        switch (value.*) {
+                            .null => return .iterator_consumed,
+                            .bool => |truthy| return if (truthy and current_index == 0)
+                                PathResolution{ .field = try action_fn(action_param, truthy) }
+                            else
+                                .iterator_consumed,
+                            .string => |text| return if (text.len > 0 and current_index == 0)
+                                PathResolution{ .field = try action_fn(action_param, text) }
+                            else
+                                .iterator_consumed,
+                            .list => |items| return if (current_index < items.len)
+                                dynamicLeaf(action_param, &items[current_index])
+                            else
+                                .iterator_consumed,
+                            .map => return if (current_index == 0)
+                                PathResolution{ .field = try action_fn(action_param, value) }
+                            else
+                                .iterator_consumed,
+                        }
+                    }
+
+                    return dynamicLeaf(action_param, value);
+                }
+
+                /// Leaves unwrap to native values; maps and lists stay
+                /// wrapped — and pointed-to — so a section context can
+                /// look into them later.
+                fn dynamicLeaf(action_param: anytype, value: *const mustache.Value) TError!PathResolution {
+                    return PathResolution{ .field = switch (value.*) {
+                        .null => try action_fn(action_param, @as(?u0, null)),
+                        .bool => |truthy| try action_fn(action_param, truthy),
+                        .string => |text| try action_fn(action_param, text),
+                        else => try action_fn(action_param, value),
+                    } };
                 }
 
                 fn recursiveFind(
